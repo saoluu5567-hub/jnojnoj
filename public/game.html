@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chibi Pet World - Game</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .login-screen {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    .login-screen h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 2.5em;
+    }
+
+    .login-screen p {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 1.1em;
+    }
+
+    .form-group {
+      margin: 20px 0;
+    }
+
+    .form-group label {
+      display: block;
+      color: #333;
+      margin-bottom: 8px;
+      font-weight: bold;
+      text-align: left;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .game-screen {
+      display: none;
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+      height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .game-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .header-stat {
+      text-align: center;
+    }
+
+    .header-stat label {
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    .header-stat .value {
+      font-size: 1.8em;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    .game-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 250px;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    .game-canvas {
+      background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+      border-radius: 15px;
+      border: 2px solid #667eea;
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 13px;
+    }
+
+    .game-panel {
+      background: #f5f5f5;
+      border-radius: 15px;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .game-panel h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.1em;
+    }
+
+    .player-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .player-item {
+      background: white;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border-left: 3px solid #667eea;
+      font-size: 0.9em;
+    }
+
+    .player-item strong {
+      display: block;
+      color: #333;
+      margin-bottom: 3px;
+    }
+
+    .player-item small {
+      color: #999;
+    }
+
+    .room-controls {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #ddd;
+    }
+
+    .room-btn {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: background 0.3s;
+    }
+
+    .room-btn:hover {
+      background: #764ba2;
+    }
+
+    .chat-section {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #ddd;
+    }
+
+    .chat-messages {
+      max-height: 150px;
+      overflow-y: auto;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 0.8em;
+    }
+
+    .chat-message {
+      margin: 5px 0;
+      padding: 5px;
+      background: #f0f0f0;
+      border-radius: 5px;
+    }
+
+    .chat-message strong {
+      color: #667eea;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 5px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 0.9em;
+    }
+
+    .chat-input button {
+      padding: 8px 15px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .game-footer {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 15px;
+      text-align: center;
+      color: #666;
+    }
+
+    .logout-btn {
+      background: #f44336;
+      margin-top: 10px;
+    }
+
+    .logout-btn:hover {
+      background: #d32f2f;
+    }
+
+    .world-select {
+      margin-bottom: 15px;
+    }
+
+    .world-select select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      .game-content {
+        grid-template-columns: 1fr;
+      }
+
+      .game-panel {
+        display: none;
+      }
+
+      .game-header {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .player-marker {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: #667eea;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2em;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      border: 2px solid white;
+    }
+
+    .player-marker.self {
+      background: #4caf50;
+      border: 3px solid gold;
+    }
+
+    .player-name {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 0.8em;
+      white-space: nowrap;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+    }
+
+    .modal-content h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .modal-content button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .close-modal {
+      background: #999 !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+      <h1>🎮 Chibi Pet World</h1>
+      <p>Join the adventure!</p>
+
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter your name" value="Player">
+      </div>
+
+      <div class="form-group">
+        <label>Avatar</label>
+        <select id="avatar">
+          <option value="🐱">🐱 Cat</option>
+          <option value="🐶">🐶 Dog</option>
+          <option value="🐰">🐰 Rabbit</option>
+          <option value="🐿️">🐿️ Squirrel</option>
+          <option value="🦊">🦊 Fox</option>
+          <option value="🐻">🐻 Bear</option>
+          <option value="🐼">🐼 Panda</option>
+          <option value="🦁">🦁 Lion</option>
+        </select>
+      </div>
+
+      <button class="btn" onclick="startGame()">Start Game</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div class="game-screen" id="gameScreen">
+      <div class="game-header">
+        <div class="header-stat">
+          <label>Level</label>
+          <div class="value" id="playerLevel">1</div>
+        </div>
+        <div class="header-stat">
+          <label>Coins</label>
+          <div class="value" id="playerCoins">0</div>
+        </div>
+        <div class="header-stat">
+          <label>Position</label>
+          <div class="value" id="playerPos">0, 0</div>
+        </div>
+      </div>
+
+      <div class="game-content">
+        <div class="game-canvas" id="gameCanvas">
+          <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="game-panel">
+          <h3>👥 Players</h3>
+          <div class="player-list" id="onlinePlayersList">
+            <p style="color: #999; font-size: 0.9em;">No players online</p>
+          </div>
+
+          <div class="world-select">
+            <label>World:</label>
+            <select id="worldSelect" onchange="changeWorld()">
+              <option value="grass-land">🌱 Grass Land</option>
+              <option value="candy-world">🍬 Candy World</option>
+            </select>
+          </div>
+
+          <div class="room-controls">
+            <button class="room-btn" onclick="openCreateRoomModal()">+ Create Room</button>
+            <button class="room-btn" onclick="openJoinRoomModal()">Join Room</button>
+          </div>
+
+          <div class="chat-section" id="chatSection" style="display: none;">
+            <h3>💬 Room Chat</h3>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input">
+              <input type="text" id="chatInput" placeholder="Message...">
+              <button onclick="sendChat()">Send</button>
+            </div>
+          </div>
+
+          <button class="room-btn logout-btn" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="game-footer">
+        <p>Use WASD or Arrow Keys to move | Click to walk | Create or join rooms to play with friends</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Room Modal -->
+  <div class="modal" id="createRoomModal">
+    <div class="modal-content">
+      <h2>Create Room</h2>
+      <input type="text" id="roomName" placeholder="Room Name" value="My Room">
+      <button onclick="createRoom()">Create</button>
+      <button class="close-modal" onclick="closeCreateRoomModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Join Room Modal -->
+  <div class="modal" id="joinRoomModal">
+    <div class="modal-content">
+      <h2>Join Room</h2>
+      <input type="text" id="roomCode" placeholder="Enter Room Code" maxlength="6">
+      <button onclick="joinRoom()">Join</button>
+      <button class="close-modal" onclick="closeJoinRoomModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    let currentPlayer = null;
+    let onlinePlayers = {};
+    let currentRoom = null;
+    let canvas, ctx;
+    const WORLD_WIDTH = 800;
+    const WORLD_HEIGHT = 500;
+
+    // ===== Game Initialization =====
+    function startGame() {
+      const username = document.getElementById("username").value || "Guest";
+      const avatar = document.getElementById("avatar").value;
+
+      if (!username) {
+        alert("Please enter username");
+        return;
+      }
+
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("gameScreen").style.display = "flex";
+
+      canvas = document.getElementById("canvas");
+      ctx = canvas.getContext("2d");
+      canvas.width = WORLD_WIDTH;
+      canvas.height = WORLD_HEIGHT;
+
+      // Join game
+      socket.emit("player_join", {
+        username,
+        avatar,
+        level: 1,
+        coins: 0,
+      });
+
+      // Setup canvas click movement
+      canvas.addEventListener("click", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (WORLD_WIDTH / rect.width);
+        const y = (e.clientY - rect.top) * (WORLD_HEIGHT / rect.height);
+        movePlayerTo(x, y);
+      });
+
+      // Setup keyboard movement
+      document.addEventListener("keydown", handleKeyDown);
+
+      // Heartbeat
+      setInterval(() => {
+        socket.emit("heartbeat");
+      }, 5000);
+
+      // Game loop
+      gameLoop();
+    }
+
+    function movePlayerTo(x, y) {
+      if (currentPlayer) {
+        socket.emit("player_move", {
+          x: Math.max(0, Math.min(x, WORLD_WIDTH)),
+          y: Math.max(0, Math.min(y, WORLD_HEIGHT)),
+          world: document.getElementById("worldSelect").value,
+        });
+      }
+    }
+
+    function handleKeyDown(e) {
+      if (!currentPlayer) return;
+
+      const step = 20;
+      const keys = {
+        "ArrowUp": () => movePlayerTo(currentPlayer.x, currentPlayer.y - step),
+        "ArrowDown": () => movePlayerTo(currentPlayer.x, currentPlayer.y + step),
+        "ArrowLeft": () => movePlayerTo(currentPlayer.x - step, currentPlayer.y),
+        "ArrowRight": () => movePlayerTo(currentPlayer.x + step, currentPlayer.y),
+        "w": () => movePlayerTo(currentPlayer.x, currentPlayer.y - step),
+        "s": () => movePlayerTo(currentPlayer.x, currentPlayer.y + step),
+        "a": () => movePlayerTo(currentPlayer.x - step, currentPlayer.y),
+        "d": () => movePlayerTo(currentPlayer.x + step, currentPlayer.y),
+      };
+
+      if (keys[e.key]) keys[e.key]();
+    }
+
+    // ===== Socket Events =====
+    socket.on("join_success", (player) => {
+      currentPlayer = player;
+      console.log("✅ Joined game:", player);
+    });
+
+    socket.on("player_position_update", (player) => {
+      if (player.playerId) {
+        onlinePlayers[player.playerId] = player;
+        updateStats();
+      }
+    });
+
+    socket.on("admin_online_update", (data) => {
+      data.players.forEach(player => {
+        onlinePlayers[player.playerId] = player;
+      });
+      updateOnlinePlayersList();
+    });
+
+    socket.on("room_created", (room) => {
+      currentRoom = room;
+      document.getElementById("chatSection").style.display = "block";
+      alert(`Room created! Code: ${room.roomCode}`);
+    });
+
+    socket.on("room_update", (room) => {
+      currentRoom = room;
+      console.log("Room updated:", room);
+    });
+
+    socket.on("new_chat", (data) => {
+      const chatMessages = document.getElementById("chatMessages");
+      const message = document.createElement("div");
+      message.className = "chat-message";
+      message.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+      chatMessages.appendChild(message);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+
+    socket.on("room_error", (error) => {
+      alert("Room Error: " + error);
+    });
+
+    // ===== Game Functions =====
+    function gameLoop() {
+      ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+      // Draw grid
+      ctx.strokeStyle = "#ddd";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= WORLD_WIDTH; i += 50) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, WORLD_HEIGHT);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= WORLD_HEIGHT; i += 50) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(WORLD_WIDTH, i);
+        ctx.stroke();
+      }
+
+      // Draw players
+      Object.values(onlinePlayers).forEach(player => {
+        const isCurrentPlayer = currentPlayer && player.playerId === currentPlayer.playerId;
+        const color = isCurrentPlayer ? "#4caf50" : "#667eea";
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "white";
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(player.avatar, player.x, player.y + 5);
+
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.font = "12px Arial";
+        ctx.fillText(player.username, player.x, player.y - 25);
+      });
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateStats() {
+      if (currentPlayer) {
+        document.getElementById("playerLevel").textContent = currentPlayer.level;
+        document.getElementById("playerCoins").textContent = currentPlayer.coins;
+        document.getElementById("playerPos").textContent = `${Math.round(currentPlayer.x)}, ${Math.round(currentPlayer.y)}`;
+      }
+    }
+
+    function updateOnlinePlayersList() {
+      const playerList = document.getElementById("onlinePlayersList");
+      const players = Object.values(onlinePlayers).filter(p => p);
+
+      if (players.length === 0) {
+        playerList.innerHTML = '<p style="color: #999; font-size: 0.9em;">No players online</p>';
+        return;
+      }
+
+      playerList.innerHTML = players.map(player => `
+        <div class="player-item">
+          <strong>${player.avatar} ${player.username}</strong>
+          <small>Lvl ${player.level} | 🪙 ${player.coins}</small>
+        </div>
+      `).join("");
+    }
+
+    function changeWorld() {
+      if (currentPlayer) {
+        movePlayerTo(currentPlayer.x, currentPlayer.y);
+      }
+    }
+
+    function openCreateRoomModal() {
+      document.getElementById("createRoomModal").classList.add("show");
+    }
+
+    function closeCreateRoomModal() {
+      document.getElementById("createRoomModal").classList.remove("show");
+    }
+
+    function createRoom() {
+      const roomName = document.getElementById("roomName").value;
+      socket.emit("create_room", { roomName });
+      closeCreateRoomModal();
+    }
+
+    function openJoinRoomModal() {
+      document.getElementById("joinRoomModal").classList.add("show");
+    }
+
+    function closeJoinRoomModal() {
+      document.getElementById("joinRoomModal").classList.remove("show");
+    }
+
+    function joinRoom() {
+      const roomCode = document.getElementById("roomCode").value.toUpperCase();
+      if (roomCode.length === 6) {
+        socket.emit("join_room", { roomCode });
+        closeJoinRoomModal();
+      } else {
+        alert("Invalid room code");
+      }
+    }
+
+    function sendChat() {
+      const message = document.getElementById("chatInput").value;
+      if (message && currentRoom) {
+        socket.emit("room_chat", {
+          roomCode: currentRoom.roomCode,
+          username: currentPlayer.username,
+          message,
+        });
+        document.getElementById("chatInput").value = "";
+      }
+    }
+
+    function logout() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
