@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chibi Pet World - Admin Panel</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    header p {
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    .stat-card {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 3em;
+      font-weight: bold;
+      color: #667eea;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .content-section {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .player-list, .room-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .player-item, .room-item {
+      background: #f5f5f5;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border-left: 4px solid #667eea;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .player-info h3, .room-info h3 {
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .player-info p, .room-info p {
+      font-size: 0.9em;
+      color: #666;
+      margin: 3px 0;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      margin-right: 5px;
+    }
+
+    .badge.online {
+      background: #4caf50;
+    }
+
+    .badge.offline {
+      background: #f44336;
+    }
+
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5em;
+      margin-right: 15px;
+    }
+
+    .player-item > div {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95em;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #764ba2;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .status-indicator.online {
+      background: #4caf50;
+      box-shadow: 0 0 8px #4caf50;
+    }
+
+    .status-indicator.offline {
+      background: #f44336;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 40px 20px;
+    }
+
+    .empty-state p {
+      font-size: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 1.8em;
+      }
+
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .player-item, .room-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .player-item > div {
+        width: 100%;
+      }
+    }
+
+    .refresh-btn {
+      background: #4caf50;
+      float: right;
+    }
+
+    .refresh-btn:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎮 Chibi Pet World - Admin Panel</h1>
+      <p>Real-time Game Management System</p>
+    </header>
+
+    <div class="dashboard">
+      <div class="card stat-card">
+        <div class="stat-label">Online Players</div>
+        <div class="stat-number" id="onlineCount">0</div>
+        <div class="stat-label">Currently Playing</div>
+      </div>
+
+      <div class="card stat-card">
+        <div class="stat-label">Total Players</div>
+        <div class="stat-number" id="totalCount">0</div>
+        <div class="stat-label">Registered Users</div>
+      </div>
+
+      <div class="card stat-card">
+        <div class="stat-label">Active Rooms</div>
+        <div class="stat-number" id="roomCount">0</div>
+        <div class="stat-label">Game Sessions</div>
+      </div>
+    </div>
+
+    <!-- Online Players Section -->
+    <div class="content-section">
+      <h2>👥 Online Players</h2>
+      <button class="refresh-btn" onclick="refreshOnlinePlayers()">🔄 Refresh</button>
+      <div class="player-list" id="onlinePlayerList">
+        <div class="empty-state">
+          <p>No players online</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Players Section -->
+    <div class="content-section">
+      <h2>📋 All Players</h2>
+      <button class="refresh-btn" onclick="refreshAllPlayers()">🔄 Refresh</button>
+      <div class="player-list" id="allPlayerList">
+        <div class="empty-state">
+          <p>No players found</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rooms Section -->
+    <div class="content-section">
+      <h2>🏠 Active Rooms</h2>
+      <button class="refresh-btn" onclick="refreshRooms()">🔄 Refresh</button>
+      <div class="room-list" id="roomList">
+        <div class="empty-state">
+          <p>No active rooms</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+
+    // Connect to server
+    socket.on("connect", () => {
+      console.log("✅ Connected to Admin Panel");
+      refreshOnlinePlayers();
+      refreshAllPlayers();
+      refreshRooms();
+    });
+
+    // Listen for online player updates
+    socket.on("admin_online_update", (data) => {
+      updateOnlinePlayers(data);
+    });
+
+    // Listen for room list updates
+    socket.on("room_list_update", (rooms) => {
+      updateRoomList(rooms);
+    });
+
+    function updateOnlinePlayers(data) {
+      document.getElementById("onlineCount").textContent = data.total;
+
+      const playerList = document.getElementById("onlinePlayerList");
+      
+      if (data.players.length === 0) {
+        playerList.innerHTML = '<div class="empty-state"><p>No players online</p></div>';
+        return;
+      }
+
+      playerList.innerHTML = data.players.map(player => `
+        <div class="player-item">
+          <div>
+            <div class="avatar">👤</div>
+            <div class="player-info">
+              <h3>${player.username}</h3>
+              <p><strong>ID:</strong> ${player.playerId.substring(0, 8)}...</p>
+              <p><strong>Level:</strong> ${player.level} | <strong>Coins:</strong> ${player.coins}</p>
+              <p><strong>World:</strong> ${player.world}</p>
+              <p><strong>Position:</strong> (${Math.round(player.x)}, ${Math.round(player.y)})</p>
+            </div>
+          </div>
+          <span class="badge online">
+            <span class="status-indicator online"></span>Online
+          </span>
+        </div>
+      `).join("");
+    }
+
+    function refreshOnlinePlayers() {
+      fetch("/api/players/online")
+        .then(res => res.json())
+        .then(data => updateOnlinePlayers(data));
+    }
+
+    function refreshAllPlayers() {
+      fetch("/api/players")
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("totalCount").textContent = data.total;
+          
+          const playerList = document.getElementById("allPlayerList");
+          
+          if (data.players.length === 0) {
+            playerList.innerHTML = '<div class="empty-state"><p>No players found</p></div>';
+            return;
+          }
+
+          playerList.innerHTML = data.players.map(player => `
+            <div class="player-item">
+              <div>
+                <div class="avatar">👤</div>
+                <div class="player-info">
+                  <h3>${player.username}</h3>
+                  <p><strong>ID:</strong> ${player.playerId.substring(0, 8)}...</p>
+                  <p><strong>Level:</strong> ${player.level} | <strong>Coins:</strong> ${player.coins} | <strong>EXP:</strong> ${player.exp}</p>
+                  <p><strong>World:</strong> ${player.world}</p>
+                  <p><strong>Joined:</strong> ${new Date(player.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          `).join("");
+        });
+    }
+
+    function updateRoomList(rooms) {
+      document.getElementById("roomCount").textContent = rooms.length;
+
+      const roomList = document.getElementById("roomList");
+      
+      if (rooms.length === 0) {
+        roomList.innerHTML = '<div class="empty-state"><p>No active rooms</p></div>';
+        return;
+      }
+
+      roomList.innerHTML = rooms.map(room => `
+        <div class="room-item">
+          <div>
+            <div class="room-info">
+              <h3>🏠 ${room.roomName}</h3>
+              <p><strong>Code:</strong> ${room.roomCode}</p>
+              <p><strong>Players:</strong> ${room.players.length}/${room.maxPlayers}</p>
+              <p><strong>Status:</strong> ${room.status}</p>
+              <p><strong>Created:</strong> ${new Date(room.createdAt).toLocaleString()}</p>
+            </div>
+          </div>
+          <span class="badge">${room.players.length} Players</span>
+        </div>
+      `).join("");
+    }
+
+    function refreshRooms() {
+      fetch("/api/rooms")
+        .then(res => res.json())
+        .then(data => updateRoomList(data.rooms || []));
+    }
+
+    // Auto refresh every 5 seconds
+    setInterval(() => {
+      refreshAllPlayers();
+    }, 5000);
+  </script>
+</body>
+</html>
